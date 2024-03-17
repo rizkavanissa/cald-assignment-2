@@ -4,7 +4,7 @@
 #include <fstream> // Provides functionality for working with files in C++ (e.g., ifstream, ofstream, and fstream)
 #include <vector> // Provides a dynamic array-like container that stores elements in contiguous memory, allowing for fast access to elements using iterators or indices. Also, it automatically handles memory allocation and resizing, making it a flexible and efficient choice for storing and manipulating collections of objects.
 #include <regex> // Provides operations for regular expressions
-
+#include <map> 
 /*
     A directive that allows you to use names from the std namespace without prefixing them with ''
     The std namespace contains many standard library components for tasks like I/O operations, string manipulation, and working with containers.
@@ -70,7 +70,7 @@ bool NetParser::convertToVerilog(char* inFile, char* outFile)
         // Skip processing if the line is empty
         if (!line.empty())
         {
-            // Check if "//" is present in the string
+            // Check if "//" is present in the string (error handling)
             if (size_t pos = line.find("//"); pos != string::npos)
             {
                 string afterComment = line.substr(pos + 2);
