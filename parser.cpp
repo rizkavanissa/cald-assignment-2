@@ -335,7 +335,11 @@ void SetNet::printRegister(ofstream& file) const
 }
 
 void SetOp::printOperation(ofstream& file) const
-{}
+{
+    int indexOp = 0; //ubah
+    file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << ")) " << this->getOpName() << indexOp << " (" << ") " << endl;
+    return;
+}
 
 
 /*

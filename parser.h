@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
-// #include <map>
+#include <map>
 
 /*
     A directive that allows you to use names from the std namespace without prefixing them with ''
@@ -79,21 +79,23 @@ class SetNet
                 function used to convert a string representation 
                 of an integer to an actual integer value.
             */
-            bitWidth = stoi(numberStr) - 1; // Convert string to integer (kind of like type casting) and subtract 1
+            std::map<std::string, int> varMap;
+
+            bitWidth = std::stoi(numberStr) - 1; // Convert string to integer (kind of like type casting) and subtract 1
 
             this->varNames = var; // Store the variable names as it is (e.g., "a, b, c")
 
         }
 
-    	string getVarNames() const;
-		string getNetType() const;
-		int getBitWidth() const;
-		char getSignType() const;
+    string getVarNames() const;
+    string getNetType() const;
+    int getBitWidth() const;
+    char getSignType() const;
 
-        void printInput(ofstream& file) const;
-        void printOutput(ofstream& file) const;
-        void printWire(ofstream& file, NetParser &netParser) const;
-        void printRegister(ofstream& file) const;
+    void printInput(ofstream& file) const;
+    void printOutput(ofstream& file) const;
+    void printWire(ofstream& file, NetParser& netParser) const;
+    void printRegister(ofstream& file) const;
 };
 
 // Class to store each operation
@@ -139,7 +141,8 @@ class NetParser //this class implements not only wires, but also inputs, outputs
 		vector<SetNet> wires;
 		vector<SetNet> registers;
         vector<SetOp> operations;
-        // map<string, vector<string>> netOperator; // Create a map of strings to a vector strings
+        
+        //map<string, vector<string>> netOperator; // Create a map of strings to a vector strings
 
     public:
 
@@ -156,6 +159,10 @@ class NetParser //this class implements not only wires, but also inputs, outputs
         const vector<SetOp>& getOperations() const;
 
         bool convertToVerilog(char* inFile, char* outFile);
+
+
+
+
 };
 
 #endif
