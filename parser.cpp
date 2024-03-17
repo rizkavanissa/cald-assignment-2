@@ -119,6 +119,35 @@ bool NetParser::convertToVerilog(char* inFile, char* outFile)
         }
     }
 
+// map
+	std::regex intRegex("\\bInt(\\d+)\\b"); // structure of the operation ... Int(number) ...
+	std::map<string, int> variable;
+	std::stringstream ss(line);
+
+	while (! line.empty()) {
+		
+		for (std::regex_iterator it(line.begin(), line.end(), intRegex); it != std::sregex_iterator(); ++it)
+		{
+			// regex varRegex("\\bInt(\\d+)([A-Za-z])");
+			// obtain the variable name
+			
+			// checks the validity of the input based on the regex
+			/* bool isValidInput(const std::string& input)
+			{
+				std::regex varRegex("\\bInt(\\d+)([A-Za-z])");
+				return std::regex_match(input, varRegex);
+			}
+
+			if (isValidInput(line))
+			{
+				
+			} */
+				
+			int intValue = std::stoi(it->str());
+			variable[] = intValue;
+		}
+	}
+
     /*
 
     ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗ ████████╗    ████████╗ ██████╗     ██╗   ██╗███████╗██████╗ ██╗██╗      ██████╗  ██████╗ 
