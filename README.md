@@ -1,11 +1,22 @@
 # cald-assignment-2
 
-# Group Members:
+# Name and NetID:
+1. Brandon John Lim Yung Chen - 
+2. Moh Erwin Septianto - 
+3. Muhammad Nafis Aimanurrohman - 
+4. Pieter Timothy - 
+5. Rizka Vanissa Alifia - rizkavanissa
+
+# Name and Course:
 1. Brandon John Lim Yung Chen - (ECE 474a)
 2. Moh Erwin Septianto - (ECE 474a)
 3. Muhammad Nafis Aimanurrohman - (ECE 474a)
 4. Pieter Timothy - (ECE 474a)
-5. Rizka Vanissa Alifia - rizkavanissa (ECE 474a)
+5. Rizka Vanissa Alifia - (ECE 474a)
+
+# Brief Description of the Program
+
+# Contribution
 
 Target(Jumat, 07/03/2024)
 The initial framework of the project, including header files as well as most of the basic functionality with I/O
