@@ -1,10 +1,10 @@
 # cald-assignment-2
 
 # Name and NetID:
-1. Brandon John Lim Yung Chen - 
-2. Moh Erwin Septianto - 
-3. Muhammad Nafis Aimanurrohman - 
-4. Pieter Timothy - 
+1. Brandon John Lim Yung Chen - brandonjchen
+2. Moh Erwin Septianto - mohseptianto
+3. Muhammad Nafis Aimanurrohman - muhnafis
+4. Pieter Timothy - pietertimothy
 5. Rizka Vanissa Alifia - rizkavanissa
 
 # Name and Course:
@@ -15,38 +15,11 @@
 5. Rizka Vanissa Alifia - (ECE 474a)
 
 # Brief Description of the Program
+This program is a converter that translates a behavior netlist text file (commonly used format) into a Verilog file. Verilog is a hardware description language widely used for designing digital circuits. This conversion tool enables users to leverage existing behavior netlist files within a Verilog design flow.
 
 # Contribution
-
-Target(Jumat, 07/03/2024)
-The initial framework of the project, including header files as well as most of the basic functionality with I/O
--->>Bikin framework project, create file2 yang dibutuhkan aja(kalo menurut instruction: 
-  datatypes.h       dpgen.cpp             log.cpp
-  graph.h           log.h                 parser.cpp
-  parser.h
-  ), ama setidaknya bisa handling input (file) ama keluar output (mungkin echo aja dulu)
-
-
-Pembagian Tugas
-P1
-	Verified FDS scheduling functionality
-	If statement parsing and edge cases
-	Verified output files to function in verilog 
-
-P2
-	If statement to mux generation in graph
-	Error Detection for FDS functionality
-	FDS scheduling (Time Frames)
-
-P3
-	Generating Verilog code for output
-	If statement parsing
-	FDS debugging
-
-P4
-	Constructed framework for FDS Scheduling (Graph generation)
-	If statement edge case verification
-	Error detection for parser and If statements
-P5
-	Parsing of input file
-	Build testing on submission environment.
+1. Brandon John Lim Yung Chen - 
+2. Moh Erwin Septianto - 
+3. Muhammad Nafis Aimanurrohman - 
+4. Pieter Timothy - 
+5. Rizka Vanissa Alifia - 
