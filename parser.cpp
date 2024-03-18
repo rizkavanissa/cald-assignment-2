@@ -130,9 +130,23 @@ bool NetParser::convertToVerilog(char* inFile, char* outFile)
 		{
 			// regex varRegex("\\bInt(\\d+)([A-Za-z])");
 			// obtain the variable name
+			std::stringstream ss(line);
+			std::string word;
+
+			while (ss >> word)
+			{
+				if(std::isalpha(word.front()) && (word.back() == ',' || ' '))
+				{
+					printf("variable read");
+				}
+				else
+				{
+					word = " ";
+				}
+			}
 			
 			// checks the validity of the input based on the regex
-			bool isValidInput(const std::string& input)
+			/*bool isValidInput(const std::string& input)
 			{
 				std::regex varRegex("\\bInt(\\d+)([A-Za-z])");
 				return std::regex_match(input, varRegex);
@@ -141,7 +155,8 @@ bool NetParser::convertToVerilog(char* inFile, char* outFile)
 			if (isValidInput(line))
 			{
 				
-			}
+			} */
+			
 				
 			int intValue = std::stoi(it->str());
 			variable[] = intValue;
