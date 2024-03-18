@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
-// #include <map>
+#include <unordered_map>
 
 /*
     A directive that allows you to use names from the std namespace without prefixing them with ''
@@ -24,76 +24,16 @@ using namespace std;
 #define GT ">" // Greater than operator constant
 #define LT "<" // Less than operator constant
 #define EQ	"==" // Equal operator constant
-#define SEL "?" // Multiplexer operator constant
+#define MUX "?" // Multiplexer operator constant
 #define SHR ">>" // Shift right operator constant
 #define SHL "<<" // Shift left operator constant
 
-
-// class CheckSyntax
-// {
-//     private:
-
-
-//     public:
-
-// };
-
-// Class to store each net type (input, output, wire, register)
-class SetNet
+// Define a struct to hold variable information
+struct variableInfo
 {
-    private:
-        
-        string netType; // the type: "i" for input, "o" for output, "w" for wire, "u" for unassigned
-        char signType; // "u" for unsigned, "s" for signed
-        int bitWidth;  //the number of bits for the variable
-        string varNames; //the name of the variable
-
-    public:
-
-        // Default Constructor
-        SetNet()
-        {
-            this->netType = "";
-            this->signType = '\0';
-            this->bitWidth = 0;
-            this->varNames = "";
-        }
-
-        // Parameterized Constructor
-        SetNet( string netType, string dataType, string var )
-        {
-            this->netType = netType; // Assign the corresponding net type
-
-            // Determine sign type
-            if (dataType.find('U') != string::npos) { // Check if the character 'U' is found in the string
-                this->signType = 'u'; // Unsigned datatype
-            } else {
-                this->signType = 's'; // Signed datatype
-            }
-
-            // Extract integer number from "dataType" string
-            size_t pos = dataType.find_first_of("0123456789"); // Find first encounter of any of these numbers
-            string numberStr = dataType.substr(pos); // Extracts a substring from the string starting from the position "pos" to the end of the string
-            /*
-                stoi() (A.K.A string to integer) is a standard C++ 
-                function used to convert a string representation 
-                of an integer to an actual integer value.
-            */
-            bitWidth = stoi(numberStr) - 1; // Convert string to integer (kind of like type casting) and subtract 1
-
-            this->varNames = var; // Store the variable names as it is (e.g., "a, b, c")
-
-        }
-
-    	string getVarNames() const;
-		string getNetType() const;
-		int getBitWidth() const;
-		char getSignType() const;
-
-        void printInput(ofstream& file) const;
-        void printOutput(ofstream& file) const;
-        void printWire(ofstream& file, NetParser &netParser) const;
-        void printRegister(ofstream& file) const;
+    string netType; // Store the net type (e.g., "input", "output", "wire", "register")
+    char signType; // "u" for unsigned, "s" for signed
+    int bitWidth; // Bitwidth of the variable
 };
 
 // Class to store each operation
@@ -120,13 +60,54 @@ class SetOp
         {
             this->netOperator = netOperator; // Assign the type of operator
             this->operands = operands; // Operands used in the operation
-            this->operands.erase(this->operands.begin() + 2); // Remove the element at the specified index (i.e., the operators like '+' or '-' or '*' or etc)
+
+            if(netOperator != "REG") // Skip this code if the netOperator is REG because it does not have an operator
+            {
+                this->operands.erase(this->operands.begin() + 2); // Remove the element at the specified index (i.e., the operators like '+' or '-' or '*' or etc)
+            }
         }
 
         string getOpName() const;
         vector<string> getOperands() const;
 
-        void printOperation(ofstream& file) const;
+        void printOperation(ofstream& file, int indexOp, unordered_map<string, variableInfo> varBits) const;
+};
+
+// Class to store each net type (input, output, wire, register)
+class SetNet
+{
+    private:
+        
+        string netType; // the type: "i" for input, "o" for output, "w" for wire, "u" for unassigned
+        int bitWidth; // Bitwidth of the variable
+        string varNames; //the name of the variable
+
+    public:
+
+        // Default Constructor
+        SetNet()
+        {
+            this->netType = "";
+            this->bitWidth = 0;
+            this->varNames = "";
+        }
+
+        // Parameterized Constructor
+        SetNet( string netType, int bit, string var )
+        {
+            this->netType = netType; // Assign the corresponding net type
+            this->bitWidth = bit; // Store the bit width of te variables
+            this->varNames = var; // Store the variable names as it is (e.g., "a, b, c")
+        }
+
+    	string getVarNames() const;
+		string getNetType() const;
+		int getBitWidth() const;
+
+        void printInput(ofstream& file) const;
+        void printOutput(ofstream& file) const;
+        void printWire(ofstream& file, vector<SetOp> ops) const;
+        void printRegister(ofstream& file) const;
 };
 
 // Class that stores a set of those net types or operations
@@ -139,7 +120,8 @@ class NetParser //this class implements not only wires, but also inputs, outputs
 		vector<SetNet> wires;
 		vector<SetNet> registers;
         vector<SetOp> operations;
-        // map<string, vector<string>> netOperator; // Create a map of strings to a vector strings
+        
+        unordered_map<string, variableInfo> variableBits; // Create an unordered map to store each variable with a vector strings
 
     public:
 
@@ -149,13 +131,17 @@ class NetParser //this class implements not only wires, but also inputs, outputs
 		void setRegister(SetNet reg);
         void setOperation(SetOp op);
 
+        void setVarBit(string netType, char signType, int bit, string var);
+        const unordered_map<string, variableInfo>& getVariableBits() const;
+        void setBitWidthToOne(string var);
+
         const vector<SetNet>& getInputs() const;
         const vector<SetNet>& getOutputs() const;
         const vector<SetNet>& getWires() const;
         const vector<SetNet>& getRegisters() const;
         const vector<SetOp>& getOperations() const;
 
-        bool convertToVerilog(char* inFile, char* outFile);
+        bool convertToVerilog(string inputFile, string outputFile);
 };
 
 #endif

@@ -1,9 +1,9 @@
+#include "parser.h"
+
 #include <filesystem> //  Provides functions to perform operations on file systems (e.g., querying file attributes, iterating through directory contents, and manipulating paths)
 #include <iostream> // Provides the basic input/output stream functionality in C++ (e.g., std::cin and std::cout)
 #include <fstream> // Provides functionality for working with files in C++ (e.g., std::ifstream, std::ofstream, and std::fstream)
 #include <vector> // Provides a dynamic array-like container that stores elements in contiguous memory, allowing for fast access to elements using iterators or indices. Also, it automatically handles memory allocation and resizing, making it a flexible and efficient choice for storing and manipulating collections of objects.
-
-#include "parser.h"
 
 /*
     A directive that allows you to use names from the std namespace without prefixing them with 'std::'
@@ -23,14 +23,7 @@ bool check_conditions(const string& filename)
     // Open the specified file
     ifstream file(filename);
 
-    // Check if the Netlist file exists
-    if ( !filesystem::exists(filename) )
-    {
-        cerr << "Netlist file does not exist: " << filename << endl;
-        return false;
-
-    }
-    else if ( !file.is_open() ) // Check whether the file can be opened
+    if ( !file.is_open() ) // Check whether the file can be opened
     {
         cerr << "Error: Unable to open the text file of " << filename << ".txt" << endl;
         return false;
@@ -58,6 +51,9 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
+    string netlistFile = argv[1];
+    string verilogFile = argv[2];
+
     // Check additional conditions before opening the file
     if (!check_conditions(argv[1])) {
         return 1; // Exit the program if conditions are not met
@@ -65,9 +61,9 @@ int main(int argc, char* argv[])
 
     NetParser netParser; // Create an instance of the NetParser class
 
-    if(netParser.convertToVerilog(argv[1], argv[2])) // Perform the conversion from behavioral netlist text format to Verilog code
+    if(netParser.convertToVerilog(netlistFile, verilogFile)) // Perform the conversion from behavioral netlist text format to Verilog code
     {
-        cout << argv[2] << " Verilog file successfully created" << endl;
+        cout << "Verilog file successfully created" << endl;
     } else { cout << "Verilog file failed to be created due to incomplete Behavioral Netlist" << endl;} // IF the conversion is unsuccessful, this error message is displayed instead
 
     return 0;
