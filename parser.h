@@ -110,7 +110,7 @@ class SetNet
         void printRegister(ofstream& file) const;
 };
 
-// Class that stores a set of those net types or operations
+// Class that stores a set of net types or operations
 class NetParser //this class implements not only wires, but also inputs, outputs, and registers
 {
     private:

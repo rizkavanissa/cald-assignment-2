@@ -1278,7 +1278,7 @@ bool NetParser::convertToVerilog(string inputFile, string outputFile)
         {
             bool createReg = checkOutput(line, netParser);
             netParser.setOperation(parseOperation(line, createReg)); // Pass the string in the current line to the function
-            if(createReg) // Checks if a register needs to be created
+            if(createReg) // Checks if register needs to be created
             {
                 createRegister(line, netParser); 
             }
