@@ -121,7 +121,7 @@ class NetParser //this class implements not only wires, but also inputs, outputs
 		vector<SetNet> registers;
         vector<SetOp> operations;
         
-        unordered_map<string, variableInfo> variableBits; // Create an unordered map to store each variable with a vector strings
+        unordered_map<string, variableInfo> variableBits; // To store each variable with a vector strings
 
     public:
 

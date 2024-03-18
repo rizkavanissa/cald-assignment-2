@@ -1254,7 +1254,7 @@ bool NetParser::convertToVerilog(string inputFile, string outputFile)
     {
         istringstream lineStream(line); // Initialize a stream from a string and then parse it (purposely for >>)
         string netType; // Declare string variable to store token
-        string bitWidth;
+        string bitWidth; // Stores the bit width of a line
 
         lineStream >> netType >> bitWidth; // Store the first token in netType
         
