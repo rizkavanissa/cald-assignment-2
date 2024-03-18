@@ -69,12 +69,6 @@ void NetParser::setVarBit(string netType, char signType, int bit, string var)
     return;
 }
 
-void NetParser::setBitWidthToOne(string var)
-{
-    this->variableBits[var].bitWidth = 1;
-    return;
-}
-
 /*
 
     ██████╗ ███████╗████████╗████████╗███████╗██████╗ ███████╗
@@ -179,13 +173,15 @@ int getMaxBitWidth(int option, vector<string> operands, unordered_map<string, va
     else if(option == 2)
     {
         int maxBitWidth = 0;
-        
-        for (const string& operand : operands) // Iterate over each element using a ranged-based for loop
+
+        for (size_t i = 2; i < operands.size(); ++i) // Iterate over each element using an indexed for loop
         {
-            for ( const auto& var : varBits ) // Iterate through the content of the unordered_map
+            const string& operand = operands[i]; // Get the current operand using index i
+
+            for (const auto& var : varBits) // Iterate through the content of the unordered_map
             {
                 if (var.first == operand && var.second.bitWidth > maxBitWidth) // Check if the key is equal to the current operand
-                {                    
+                {                
                     maxBitWidth = var.second.bitWidth;
                 }
             }
@@ -201,7 +197,14 @@ int getMaxBitWidth(int option, vector<string> operands, unordered_map<string, va
 //------------------------------------------------------------------------------------------------------------------------------------------------------------- //
 
 /*
-    Checking Functions
+
+    ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗    ███████╗██╗   ██╗███╗   ██╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗███████╗
+    ██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝    ██╔════╝██║   ██║████╗  ██║██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
+    ██║     ███████║█████╗  ██║     █████╔╝     █████╗  ██║   ██║██╔██╗ ██║██║        ██║   ██║██║   ██║██╔██╗ ██║███████╗
+    ██║     ██╔══██║██╔══╝  ██║     ██╔═██╗     ██╔══╝  ██║   ██║██║╚██╗██║██║        ██║   ██║██║   ██║██║╚██╗██║╚════██║
+    ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗    ██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║███████║
+    ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝    ╚═╝      ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+
 */
 bool checkBitWidth(const string& input) // Check if the bitwidth is valid
 {
@@ -291,7 +294,14 @@ bool isSigned(vector<string> operands, unordered_map<string, variableInfo> varBi
 }
 
 /*
-    Create Functions
+
+    ███╗   ███╗██╗███████╗ ██████╗    ███████╗██╗   ██╗███╗   ██╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗███████╗
+    ████╗ ████║██║██╔════╝██╔════╝    ██╔════╝██║   ██║████╗  ██║██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
+    ██╔████╔██║██║███████╗██║         █████╗  ██║   ██║██╔██╗ ██║██║        ██║   ██║██║   ██║██╔██╗ ██║███████╗
+    ██║╚██╔╝██║██║╚════██║██║         ██╔══╝  ██║   ██║██║╚██╗██║██║        ██║   ██║██║   ██║██║╚██╗██║╚════██║
+    ██║ ╚═╝ ██║██║███████║╚██████╗    ██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║███████║
+    ╚═╝     ╚═╝╚═╝╚══════╝ ╚═════╝    ╚═╝      ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+
 */
 void createRegister(string line, NetParser& np)
 {
@@ -312,6 +322,86 @@ void createRegister(string line, NetParser& np)
     np.setOperation(SetOp("REG",tempVec)); // Create the register operation
 
     return;
+}
+
+vector<string> checkSignedPadding(int maxBitWidth, string opName, vector<string> operands, unordered_map<string, variableInfo> varBits)
+{
+    vector<string> tempOps; // To store temporary operands to be returned
+
+    // cout << "My operands: ";
+    // for (const string& str : operands) {
+    //     cout << str << ",";
+    // }
+    // cout << "\n" << endl;
+
+    tempOps.push_back(operands[0]); // Store the output variable
+
+    for (size_t i = 1; i < operands.size(); ++i)
+    {
+        if(i == 1 && opName == "MUX")
+        {
+            tempOps.push_back(operands[i]); // Store the variable
+            continue; // Skip this operand if the operation is a multiplexer
+        }
+        for (const auto& var : varBits)
+        {
+            if(operands[i] == var.first) // Find the bit width of the output variable
+            {
+                if(var.second.bitWidth < maxBitWidth)
+                {
+                    tempOps.push_back("{{" + to_string(maxBitWidth-var.second.bitWidth) + "{" + operands[i] + "[" + to_string(maxBitWidth-var.second.bitWidth-1) + "]}}," + operands[i] + "}"); // Store the padded operand
+                    break; // Exit the loop
+                }
+                else
+                {
+                    tempOps.push_back(operands[i]); // Else store the operand as it is
+                    break; // Exit the loop
+                }
+            }
+        }
+    }
+
+    return tempOps;
+}
+
+vector<string> checkUnsignedPadding(int maxBitWidth, string opName, vector<string> operands, unordered_map<string, variableInfo> varBits)
+{
+    vector<string> tempOps; // To store temporary operands to be returned
+
+    // cout << "My operands: ";
+    // for (const string& str : operands) {
+    //     cout << str << ",";
+    // }
+    // cout << "\n" << endl;
+
+    tempOps.push_back(operands[0]); // Store the output variable
+
+    for (size_t i = 1; i < operands.size(); ++i)
+    {
+        if(i == 1 && opName == "MUX")
+        {
+            tempOps.push_back(operands[i]); // Store the variable
+            continue; // Skip this operand if the operation is a multiplexer
+        }
+        for (const auto& var : varBits)
+        {
+            if(operands[i] == var.first) // Find the bit width of the output variable
+            {
+                if(var.second.bitWidth < maxBitWidth)
+                {
+                    tempOps.push_back("{" + to_string(maxBitWidth-var.second.bitWidth-1) + "'b0, " + operands[i] + "}"); // Store the padded operand
+                    break; // Exit the loop
+                }
+                else
+                {
+                    tempOps.push_back(operands[i]); // Else store the operand as it is
+                    break; // Exit the loop
+                }
+            }
+        }
+    }
+
+    return tempOps;
 }
 
 
@@ -345,10 +435,10 @@ void writeToOutput(string verilogFile, NetParser &netParser)
 
     // Write the time unit and module header to the output file 
 	file << "`timescale 1ns / 1ps" << "\n" << endl;
-	file << "module " << verilogFile << " (" << endl;
+	file << "module " << verilogFile.substr(0, verilogFile.find('.')) << " (" << endl;
     file << "\t" << "input Clk, Rst," << endl;
 
-    if(!inputs.empty())
+    if(!inputs.empty()) // Check whether the input set is empty
     {
         for (const SetNet& input : inputs) // Iterate through each object in the referenced vector
         {
@@ -356,7 +446,7 @@ void writeToOutput(string verilogFile, NetParser &netParser)
         }
     }
     
-    if(!outputs.empty())
+    if(!outputs.empty()) // Check whether the output set is empty
     {
         for (const SetNet& output : outputs) // Iterate through each object in the referenced vector
         {
@@ -379,17 +469,17 @@ void writeToOutput(string verilogFile, NetParser &netParser)
     }
     file << "\n" << ");" << endl;
 
-    if(!wires.empty())
+    if(!wires.empty()) // Check whether the wire set is empty
     {
+        vector<string> oneBitVars;
         for (const SetNet& wire : wires) // Loop through each wire object
         {
-            // cout << "NetType: " << wire.getNetType() << ", Bitwidth: " << wire.getBitWidth() << ", VarNames: " << wire.getVarNames() << endl;
-            wire.printWire(file, operations); // Write each wire to the output file
+            wire.printWire(file, operations);
         }
         file << endl;
     }
 
-    if(!registers.empty())
+    if(!registers.empty()) // Check whether the register set is empty
     {
         for (const SetNet& reg : registers) // Loop through each register object
         {
@@ -398,7 +488,7 @@ void writeToOutput(string verilogFile, NetParser &netParser)
         file << endl;
     }
     
-    if(!operations.empty())
+    if(!operations.empty()) // Check whether the operation set is empty
     {
         unordered_map<string, int> operationCounts = {
             {"ADD", 0},
@@ -530,27 +620,19 @@ void SetNet::printWire(ofstream& file, vector<SetOp> ops) const
             {
                 oneBitVars.push_back(currentVar); // Store 'currentVar' to the 'oneBitVars' vector
                 it = vars.erase(it);  // Remove 'currentVar' from 'vars' and update the iterator
-                isOneBit = true;
+                isOneBit = true; // Set to true if the operand satisfies the condition
                 break;
             }
         }
-        if(isOneBit)
+        if(isOneBit) // If a match is found for the operand, exit the loop
         {
             break;
         }
         ++it;
     }
 
-    // for (const auto& token : vars) {
-    //     cout << "Variable: " << token << endl;
-    // }
 
-    // for (const auto& token : oneBitVars) {
-    //     cout << "Variable: " << token << endl;
-    // }
-
-
-    if (!oneBitVars.empty())
+    if (!oneBitVars.empty()) // Check whether there are operands with one bit width
     {
         for (size_t i = 0; i < oneBitVars.size(); ++i) // Store the one bit variables into a single string
         {
@@ -560,7 +642,7 @@ void SetNet::printWire(ofstream& file, vector<SetOp> ops) const
             }
         }
 
-        file << "\t" << this->getNetType() << str1 << ";" << endl; // Write the one bit variable into the output file
+        file << "\t" << this->getNetType() << " " << str1 << ";" << endl; // Write the one bit variable into the output file
 
         for (size_t i = 0; i < vars.size(); ++i) // Store the multi-bit variables into a single string
         {
@@ -587,10 +669,11 @@ void SetNet::printRegister(ofstream& file) const
 
 void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, variableInfo> varBits) const
 {
-    int maxBitWidth;
-    bool signType = false;
+    int maxBitWidth; // To store the maximum bit width
+    bool signType = false; // To store boolean value for the sign type
+    vector<string> operands; // To store operands
 
-    signType = isSigned(this->getOperands(), varBits);
+    signType = isSigned(this->getOperands(), varBits); // Check whether the operands cause the module to be signed or unsigned
 
     if( this->getOpName() == "ADD")
     {
@@ -599,13 +682,15 @@ void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, va
         /*
             Following the format:  ADD #(.DATAWIDTH(8)) ADD1(a, b, d); // d = a + b
         */
-        if(signType) // If the either is a signed type
+        if(signType) // Check if the operation is a signed type
         {
-            file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] <<");" << endl;
+            operands = checkSignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << operands[1] << ", " << operands[2] << ", " << operands[0] <<");" << endl;
         }
         else
         {
-            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ");" << endl;
+            operands = checkUnsignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << operands[1] << ", " << operands[2] << ", " << operands[0] << ");" << endl;
         }
     }
     else if( this->getOpName() == "SUB")
@@ -615,13 +700,15 @@ void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, va
         /*
             Following the format: SUB #(.DATAWIDTH(16)) SUB1 (f, d, xwire); // xwire = f - d
         */
-        if(signType)
+        if(signType) // Check if the operation is a signed type
         {
-            file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ");" << endl;
+            operands = checkSignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << operands[1] << ", " << operands[2] << ", " << operands[0] << ");" << endl;
         }
         else
         {
-            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "("<< this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ");" << endl;
+            operands = checkUnsignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "("<< this->operands[1] << ", " << this->operands[2] << ", " << this->operands[0] << ");" << endl;
         }
     }
     else if( this->getOpName() == "MUL")
@@ -631,13 +718,15 @@ void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, va
         /*
             Following the format: MUL #(.DATAWIDTH(16)) MUL1 (a, c, f); // f = a * c
         */
-        if(signType)
+        if(signType) // Check if the operation is a signed type
         {
-            file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ");" << endl;
+            operands = checkSignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << operands[1] << ", " << operands[2] << ", " << operands[0] << ");" << endl;
         }
         else
         {
-            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ") " << ");" << endl;
+            operands = checkUnsignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << operands[1] << ", " << operands[2] << ", " << operands[0] << ") " << ");" << endl;
         }
     }
     else if( this->getOpName() == "GT")
@@ -647,13 +736,15 @@ void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, va
         /*
             Following the format: COMP #(.DATAWIDTH(32)) COMP_2(d, e, bGTc, 1'b0, 1'b0); // dLTe = b > c
         */
-        if(signType)
+        if(signType) // Check if the operation is a signed type
         {
-            file << "\t" << "S" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ", 1\'b0, 1\'b0" << ");" << endl;
+            operands = checkSignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << "S" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << operands[1] << ", " << operands[2] << ", " << operands[0] << ", 1\'b0, 1\'b0" << ");" << endl;
         }
         else
         {
-            file << "\t" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ", 1\'b0, 1\'b0" << ");" << endl;
+            operands = checkUnsignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << operands[1] << ", " << operands[2] << ", " << operands[0] << ", 1\'b0, 1\'b0" << ");" << endl;
         }
     }
     else if( this->getOpName() == "LT")
@@ -663,13 +754,15 @@ void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, va
         /*
             Following the format: COMP #(.DATAWIDTH(32)) COMP_2(d, e, 1'b0, dLTe, 1'b0); // dLTe = d < e
         */
-        if(signType)
+        if(signType) // Check if the operation is a signed type
         {
-            file << "\t" << "S" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ",  1\'b0, " << this->getOperands()[0] << ", 1\'b0" << ");" << endl;
+            operands = checkSignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << "S" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << operands[1] << ", " << operands[2] << ",  1\'b0, " << operands[0] << ", 1\'b0" << ");" << endl;
         }
         else
         {
-            file << "\t" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ",  1\'b0, " << this->getOperands()[0] << ", 1\'b0" << ");" << endl;
+            operands = checkUnsignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << operands[1] << ", " << operands[2] << ",  1\'b0, " << operands[0] << ", 1\'b0" << ");" << endl;
         }
     }
     else if( this->getOpName() == "EQ")
@@ -679,13 +772,15 @@ void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, va
         /*
             Following the format: COMP #(.DATAWIDTH(32)) COMP_2(d, e, 1'b0, 1'b0, fEQg); // dLTe = f == g
         */
-        if(signType)
+        if(signType) // Check if the operation is a signed type
         {
-            file << "\t" << "S" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ",  1\'b0, 1\'b0, " << this->getOperands()[0] << ");" << endl;
+            operands = checkSignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << "S" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << operands[1] << ", " << operands[2] << ",  1\'b0, 1\'b0, " << operands[0] << ");" << endl;
         }
         else
         {
-            file << "\t" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ",  1\'b0, 1\'b0, " << this->getOperands()[0] << ");" << endl;
+            operands = checkUnsignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << operands[1] << ", " << operands[2] << ",  1\'b0, 1\'b0, " << operands[0] << ");" << endl;
         }
     }
     else if( this->getOpName() == "MUX")
@@ -695,32 +790,36 @@ void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, va
         /*
             Following the format: MUX2x1 #(.DATAWIDTH(32)) MUX_1(d, e, dLTe, g); // g = dLTe ? d : e
         */
-        if(signType)
+        if(signType) // Check if the operation is a signed type
         {
-            file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[2] << ", " << this->getOperands()[3] << ", " << this->getOperands()[1] << ", " << this->getOperands()[0] << ");" << endl;
+            operands = checkSignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << "S" << this->getOpName() << "2x1 #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << operands[2] << ", " << operands[3] << ", " << operands[1] << ", " << operands[0] << ");" << endl;
         }
         else
         {
-            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[2] << ", " << this->getOperands()[3] << ", " << this->getOperands()[1] << ", " << this->getOperands()[0] << ");" << endl;
+            operands = checkUnsignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
+            file << "\t" << this->getOpName() << "2x1 #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << operands[2] << ", " << operands[3] << ", " << operands[1] << ", " << operands[0] << ");" << endl;
         }
     }
     else if( this->getOpName() == "SHR")
     {
         maxBitWidth = getMaxBitWidth(1, this->getOperands(), varBits); // Get the maximum bit width for the module based on the output
 
+        operands = checkUnsignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
         /*
             Following the format: SHR #(.DATAWIDTH(32)) SHR2(l2div2, l2div4, sa); // l2div4 = l2div2 >> sa
         */
-        file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[0] << ", " << this->getOperands()[2] << ");" << endl;
+        file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << operands[1] << ", " << operands[0] << ", " << operands[2] << ");" << endl;
     }
     else if( this->getOpName() == "SHL")
     {
         maxBitWidth = getMaxBitWidth(1, this->getOperands(), varBits); // Get the maximum bit width for the module based on the output
 
+        operands = checkUnsignedPadding(maxBitWidth, this->getOpName(), this->getOperands(), varBits); // Check whether the operands need padding
         /*
             Following the format: SHL #(.DATAWIDTH(32)) SHL_1(g, xwire, {31'b0, dLTe}); // xwire = g << dLTe
         */
-        file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[0] << ", " << this->getOperands()[2] << ");" << endl;
+        file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << operands[1] << ", " << operands[0] << ", " << operands[2] << ");" << endl;
     }
     else if( this->getOpName() == "REG" )
     {
@@ -729,13 +828,13 @@ void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, va
         /*
             Following the format: REG #(.DATAWIDTH(32)) REG_2(zwire, Clk, Rst, z); // z = zwire
         */
-        if(signType)
+        if(signType) // Check if the operation is a signed type
         {
             file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", Clk, Rst, " << this->getOperands()[0] << ");" << endl;
         }
         else
         {
-            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", Clk, Rst, " << this->getOperands()[0] << ") " << endl;
+            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", Clk, Rst, " << this->getOperands()[0] << ");" << endl;
         }
     }
     
@@ -945,7 +1044,6 @@ SetNet parseRegister(string regString, NetParser& np) // Tokenize the register s
         signType = 's'; // Signed datatype
     }
 
-
     /*
         The code below (excluding the return) is to extract each variable along their net type, sign type, and bitwidth 
         which is then stored in a vector in the NetParser object
@@ -1001,13 +1099,17 @@ SetOp parseOperation(string opString, bool createReg) // Tokenize the operation 
         tokenCount++; // Increment the counter
     }
 
-    if(createReg)
+    if(createReg) // Check whether a new register needs to be created
     {
         tempOps[0] += "wire";
     }
 
 	// Index starts [0]
-	if(tempOps[2] == ADD) // Check if the element pointed by this index is an addition operator
+    if(tokenCount == 3)
+    {
+        return SetOp("REG",tempOps);
+    }
+	else if(tempOps[2] == ADD) // Check if the element pointed by this index is an addition operator
 	{
 		return SetOp("ADD",tempOps);
 	}
@@ -1043,10 +1145,6 @@ SetOp parseOperation(string opString, bool createReg) // Tokenize the operation 
 	{
 		return SetOp("SHL",tempOps);
 	}
-    else if(tokenCount == 3)
-    {
-        return SetOp("REG",tempOps);
-    }
 
 	return SetOp(); // Otherwise return empty object
 }
@@ -1056,11 +1154,9 @@ SetOp parseOperation(string opString, bool createReg) // Tokenize the operation 
 
 /*
 
-                                    _             
-   ___ ___  _ ____   _____ _ __ ___(_) ___  _ __  
-  / __/ _ \| '_ \ \ / / _ \ '__/ __| |/ _ \| '_ \ 
- | (_| (_) | | | \ V /  __/ |  \__ \ | (_) | | | |
-  \___\___/|_| |_|\_/ \___|_|  |___/_|\___/|_| |_|
+    _______ _______ _______  ______ _______      _     _ _______  ______ _______
+    |______    |    |_____| |_____/    |         |_____| |______ |_____/ |______
+    ______|    |    |     | |    \_    |         |     | |______ |    \_ |______
 
 */
 
@@ -1127,29 +1223,25 @@ bool NetParser::convertToVerilog(string inputFile, string outputFile)
                 // The last character is a whitespace character
                 line.pop_back(); // Remove the last character
             }
-
-            text_lines.push_back(line); // After filtering, "line" is added to the vector of strings
+            /*
+                Red Hat Linux issues a warning if this is not put in, for some reason.
+                Though this checking whether the line is empty is already done above on the outer if statement
+            */
+            if(!line.empty())
+            {
+                text_lines.push_back(line); // After filtering, "line" is added to the vector of strings
+            }
         }
     }
 
-    // ofstream verilogFile(outputFile);
-
-    // // Output each string in the vector
-    // for (const string& lain : text_lines) {
-    //     cout << lain << endl;
-    //     verilogFile << lain << endl;
-    // }
-
-    // return true;
-
     /*
 
-    ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗ ████████╗    ████████╗ ██████╗     ██╗   ██╗███████╗██████╗ ██╗██╗      ██████╗  ██████╗ 
-    ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗╚══██╔══╝    ╚══██╔══╝██╔═══██╗    ██║   ██║██╔════╝██╔══██╗██║██║     ██╔═══██╗██╔════╝ 
-    ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝   ██║          ██║   ██║   ██║    ██║   ██║█████╗  ██████╔╝██║██║     ██║   ██║██║  ███╗
-    ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗   ██║          ██║   ██║   ██║    ╚██╗ ██╔╝██╔══╝  ██╔══██╗██║██║     ██║   ██║██║   ██║
-    ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║   ██║          ██║   ╚██████╔╝     ╚████╔╝ ███████╗██║  ██║██║███████╗╚██████╔╝╚██████╔╝
-    ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝   ╚═╝          ╚═╝    ╚═════╝       ╚═══╝  ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝ ╚═════╝  ╚═════╝ 
+        ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗ ████████╗    ████████╗ ██████╗     ██╗   ██╗███████╗██████╗ ██╗██╗      ██████╗  ██████╗ 
+        ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗╚══██╔══╝    ╚══██╔══╝██╔═══██╗    ██║   ██║██╔════╝██╔══██╗██║██║     ██╔═══██╗██╔════╝ 
+        ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝   ██║          ██║   ██║   ██║    ██║   ██║█████╗  ██████╔╝██║██║     ██║   ██║██║  ███╗
+        ██║     ██║   ██║██║╚██╗██║╚██╗ ██╔╝██╔══╝  ██╔══██╗   ██║          ██║   ██║   ██║    ╚██╗ ██╔╝██╔══╝  ██╔══██╗██║██║     ██║   ██║██║   ██║
+        ╚██████╗╚██████╔╝██║ ╚████║ ╚████╔╝ ███████╗██║  ██║   ██║          ██║   ╚██████╔╝     ╚████╔╝ ███████╗██║  ██║██║███████╗╚██████╔╝╚██████╔╝
+        ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝   ╚═╝          ╚═╝    ╚═════╝       ╚═══╝  ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝ ╚═════╝  ╚═════╝ 
 
     */
 
@@ -1192,6 +1284,12 @@ bool NetParser::convertToVerilog(string inputFile, string outputFile)
             }
         }
     }
+
+    // // Output each string in the vector
+    // for (const string& lain : text_lines) {
+    //     cout << lain << endl;
+    //     verilogFile << lain << endl;
+    // }
 
     // for (const auto& wire : netParser.getOperations() ) {
     //     cout << "OpName: " << wire.getOpName() << endl;

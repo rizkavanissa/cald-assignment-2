@@ -29,7 +29,7 @@ using namespace std;
 #define SHL "<<" // Shift left operator constant
 
 // Define a struct to hold variable information
-struct variableInfo
+struct variableInfo  // Group several related variables into one place
 {
     string netType; // Store the net type (e.g., "input", "output", "wire", "register")
     char signType; // "u" for unsigned, "s" for signed
@@ -133,7 +133,6 @@ class NetParser //this class implements not only wires, but also inputs, outputs
 
         void setVarBit(string netType, char signType, int bit, string var);
         const unordered_map<string, variableInfo>& getVariableBits() const;
-        void setBitWidthToOne(string var);
 
         const vector<SetNet>& getInputs() const;
         const vector<SetNet>& getOutputs() const;
