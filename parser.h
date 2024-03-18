@@ -133,6 +133,7 @@ class NetParser //this class implements not only wires, but also inputs, outputs
 
         void setVarBit(string netType, char signType, int bit, string var);
         const unordered_map<string, variableInfo>& getVariableBits() const;
+        void setBitWidthToOne(string var);
 
         const vector<SetNet>& getInputs() const;
         const vector<SetNet>& getOutputs() const;

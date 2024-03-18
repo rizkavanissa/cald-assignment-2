@@ -13,41 +13,6 @@
 using namespace std;
 
 
-bool checkBitWidth(const string& input) // Check if the bitwidth is valid
-{
-    regex pattern("Int([0-9]+)"); // Define the pattern to match
-    smatch matches; // Store any matches from the regex
-
-    if (regex_search(input, matches, pattern)) { // Check whether the input matches the pattern
-
-        int numBits = stoi(matches[1].str()); // Extract the number of bits as an integer
-
-        if (numBits == 1) {
-            // Handle the special case when numBits is 1
-            return true;
-        }
-        else {
-            /*
-                o In binary representation, a power of 2 has only one bit set to 1, and all other bits are 0.
-                o Subtracting 1 from a power of 2 results in setting all bits to the right of the rightmost 1 bit to 1.
-                o Performing a bitwise AND operation between a power of 2 and one less than it will result in clearing 
-                all bits except for the rightmost 1 bit.
-
-                For example, 8 (1000 in binary), subtracting 1 from it gives 0111 in binary.
-                Performing a bitwise AND operation between 1000 and 0111 will result in 0000.
-                This property holds true for any bit values of 2^n, where n is a non-negative integer.
-            */
-            return (numBits > 0 && (numBits & (numBits - 1)) == 0); // Check if numBits is a power of 2
-        }
-    }
-
-    cout << "No match found. Please use correct the format in the behavioral netlist." << endl;
-    return false;
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------------------------- //
-
-
 /*
 
     ███████╗███████╗████████╗████████╗███████╗██████╗ ███████╗
@@ -101,6 +66,12 @@ void NetParser::setVarBit(string netType, char signType, int bit, string var)
     info.signType = signType;
     info.bitWidth = bit;
     this->variableBits[var] = info;
+    return;
+}
+
+void NetParser::setBitWidthToOne(string var)
+{
+    this->variableBits[var].bitWidth = 1;
     return;
 }
 
@@ -232,15 +203,46 @@ int getMaxBitWidth(int option, vector<string> operands, unordered_map<string, va
 /*
     Checking Functions
 */
+bool checkBitWidth(const string& input) // Check if the bitwidth is valid
+{
+    regex pattern("(Int|UInt)([0-9]+)"); // Define the pattern to match
+    smatch matches; // Store any matches from the regex
+
+    if (regex_search(input, matches, pattern)) { // Check whether the input matches the pattern
+
+        int numBits = stoi(matches[2].str()); // Extract the number of bits as an integer
+
+        if (numBits == 1) {
+            // Handle the special case when numBits is 1
+            return true;
+        }
+        else {
+            /*
+                o In binary representation, a power of 2 has only one bit set to 1, and all other bits are 0.
+                o Subtracting 1 from a power of 2 results in setting all bits to the right of the rightmost 1 bit to 1.
+                o Performing a bitwise AND operation between a power of 2 and one less than it will result in clearing 
+                all bits except for the rightmost 1 bit.
+
+                For example, 8 (1000 in binary), subtracting 1 from it gives 0111 in binary.
+                Performing a bitwise AND operation between 1000 and 0111 will result in 0000.
+                This property holds true for any bit values of 2^n, where n is a non-negative integer.
+            */
+            return (numBits > 0 && (numBits & (numBits - 1)) == 0); // Check if numBits is a power of 2
+        }
+    }
+
+    cout << "No match found. Please use correct the format in the behavioral netlist." << endl;
+    return false;
+}
 
 bool checkOutput(string line, NetParser& netParser) // Check whether the current line of operation requires additional wire and register to be created
 {
     istringstream ss(line); // Create a string stream to read
-    string netType; // Store the netType
+    string outputVar;
     string token; // Store the token
     char signType; // Store the sign type
 
-    ss >> netType; // Extract the first token
+    ss >> outputVar;
 
     int tokenCount = 0; // Count the tokens inside the string
     while (getline(ss, token, ' '))
@@ -249,34 +251,24 @@ bool checkOutput(string line, NetParser& netParser) // Check whether the current
     }
 
     // Check the number of tokens
-    if( netType == "output" && tokenCount != 3 )
+    if( tokenCount != 3 )
     {
-        size_t typeEnd = line.find(' '); // Finds the index of the first encountered whitespace character
-        string value = line.substr(typeEnd + 1, line.find(' ', typeEnd + 1) - typeEnd - 1); // Find and extract the bitwidth (e.g., "Int8" from "input Int8 a, b, c") and push into the vector
-
-        // Determine sign type
-        if (value.find('U') != string::npos) { // Check if the character 'U' is found in the string
-            signType = 'u'; // Unsigned datatype
-        } else {
-            signType = 's'; // Signed datatype
-        }
-
         for ( const auto& var : netParser.getVariableBits() ) // Iterate through the content of the unordered_map
         {
             // Check if the key is equal to the first token "output"
-            if (var.second.netType == netType)
+            if (var.first == outputVar && var.second.netType == "output")
             {
                 /*
                     the bit width is subtracted by 1 because that is how it will be used in the Verilog code (e.g., Int64 becomes [63:0] in Verilog)
 
                     the variable is concatenated with a string called "wire" to differentiate between the wire and register aliases
                 */
-                netParser.setVarBit(netType, signType, var.second.bitWidth-1, var.first+"wire");
-                netParser.setWire(SetNet("wire", var.second.bitWidth-1, var.first+"wire"));
+                netParser.setVarBit("wire", signType, var.second.bitWidth, var.first+"wire");
+                netParser.setWire(SetNet("wire", var.second.bitWidth, var.first+"wire"));
+
+                return true;
             }
         }
-
-        return true;
     }
 
     return false;
@@ -297,6 +289,31 @@ bool isSigned(vector<string> operands, unordered_map<string, variableInfo> varBi
 
     return false;
 }
+
+/*
+    Create Functions
+*/
+void createRegister(string line, NetParser& np)
+{
+    istringstream opStream(line); // Initialize a stream from a string and then parse it (purposely for >>)
+	string tempOp; // Declare string variable to store token
+	vector<string> tempOps; // Vector to store dynamically created string variables
+    int tokenCount = 0; // Count number of tokens
+
+	while(opStream >> tempOp) // Loop while opStream is not empty
+	{
+		if(tempOp != "=" && tempOp != ":") // Skip over any token that is an equal sign
+		{
+        	tempOps.push_back(tempOp); // Store the token in the vector
+		}
+        tokenCount++; // Increment the counter
+    }
+    vector<string> tempVec {tempOps[0], tempOps[0]+"wire"}; // Temporary vector
+    np.setOperation(SetOp("REG",tempVec)); // Create the register operation
+
+    return;
+}
+
 
 /*
 
@@ -327,55 +344,142 @@ void writeToOutput(string verilogFile, NetParser &netParser)
     unordered_map<string, variableInfo> varBits = netParser.getVariableBits(); // Get the collection of variables
 
     // Write the time unit and module header to the output file 
-	file << "`timescale 1ns / 1ps" << endl;
-	file << "module " << verilogFile << "(" << endl;
-    file << "input Clk, Rst," << endl;
+	file << "`timescale 1ns / 1ps" << "\n" << endl;
+	file << "module " << verilogFile << " (" << endl;
+    file << "\t" << "input Clk, Rst," << endl;
 
-    for (const SetNet& input : inputs) // Iterate through each object in the referenced vector
+    if(!inputs.empty())
     {
-        input.printInput(file); // Print out each object to the output file
-    }
-    
-    for (const SetNet& output : outputs) // Iterate through each object in the referenced vector
-    {
-        output.printOutput(file); // Print out each object to the output file
-        /*
-            The code below is necessary because in the Verilog code the last declaration of net does not have a comma
-            For example,
-            module Circuit4 (
-                input [63:0] a, b, c,
-                input Clk, Rst,
-                output [31:0] z, x    <- no comma here
-            );
-        */
-        if ( outputs.size() != 1 || &output != &outputs.back() )
-        { // Check whether current output is the last element of outputs
-            file << "," << endl;
+        for (const SetNet& input : inputs) // Iterate through each object in the referenced vector
+        {
+            input.printInput(file); // Print out each object to the output file
         }
-        
-    }
-    file << ");" << endl;
-
-    for (const SetNet& wire : wires) // Loop through each wire object
-    {
-        wire.printWire(file, operations); // Write each wire to the output file
-    }
-
-    for (const SetNet& reg : registers) // Loop through each register object
-    {
-        reg.printRegister(file); // Write each register to the output file
     }
     
-    for (size_t index = 0; index < operations.size(); ++index) // Loop through each operation object
+    if(!outputs.empty())
     {
-        const SetOp& operation = operations[index]; // Store a single operation object
-        // The 'index' is used as a unique ID for the created module
-        operation.printOperation(file, index+1, varBits); // Write each operation to the output file
+        for (const SetNet& output : outputs) // Iterate through each object in the referenced vector
+        {
+            output.printOutput(file); // Print out each object to the output file
+            /*
+                The code below is necessary because in the Verilog code the last declaration of net does not have a comma
+                For example,
+                module Circuit4 (
+                    input [63:0] a, b, c,
+                    input Clk, Rst,
+                    output [31:0] z, x    <- no comma here
+                );
+            */
+            if ( outputs.size() != 1 || &output != &outputs.back() )
+            { // Check whether current output is the last element of outputs
+                file << "," << endl;
+            }
+            
+        }
+    }
+    file << "\n" << ");" << endl;
+
+    if(!wires.empty())
+    {
+        for (const SetNet& wire : wires) // Loop through each wire object
+        {
+            // cout << "NetType: " << wire.getNetType() << ", Bitwidth: " << wire.getBitWidth() << ", VarNames: " << wire.getVarNames() << endl;
+            wire.printWire(file, operations); // Write each wire to the output file
+        }
+        file << endl;
     }
 
-    file << endl;
+    if(!registers.empty())
+    {
+        for (const SetNet& reg : registers) // Loop through each register object
+        {
+            reg.printRegister(file); // Write each register to the output file
+        }
+        file << endl;
+    }
+    
+    if(!operations.empty())
+    {
+        unordered_map<string, int> operationCounts = {
+            {"ADD", 0},
+            {"SUB", 0},
+            {"MUL", 0},
+            {"COMP", 0},
+            {"MUX", 0},
+            {"SHR", 0},
+            {"SHL", 0},
+            {"REG", 0}
+        };
 
-	file << "endmodule";
+        for (size_t index = 0; index < operations.size(); ++index) // Loop through each operation object
+        {
+            const SetOp& operation = operations[index]; // Store a single operation object
+
+            if(operation.getOpName() == "ADD")
+            {
+                operationCounts[operation.getOpName()] += 1;
+                // The 'index' is used as a unique ID for the created module
+                operation.printOperation(file, operationCounts[operation.getOpName()], varBits); // Write each operation to the output file
+            }
+            else if(operation.getOpName() == "SUB")
+            {
+                operationCounts[operation.getOpName()] += 1;
+                // The 'index' is used as a unique ID for the created module
+                operation.printOperation(file, operationCounts[operation.getOpName()], varBits); // Write each operation to the output file
+            }
+            else if(operation.getOpName() == "MUL")
+            {
+                operationCounts[operation.getOpName()] += 1;
+                // The 'index' is used as a unique ID for the created module
+                operation.printOperation(file, operationCounts[operation.getOpName()], varBits); // Write each operation to the output file
+            }
+            else if(operation.getOpName() == "GT")
+            {
+                operationCounts[operation.getOpName()] += 1;
+                // The 'index' is used as a unique ID for the created module
+                operation.printOperation(file, operationCounts[operation.getOpName()], varBits); // Write each operation to the output file
+            }
+            else if(operation.getOpName() == "LT")
+            {
+                operationCounts[operation.getOpName()] += 1;
+                // The 'index' is used as a unique ID for the created module
+                operation.printOperation(file, operationCounts[operation.getOpName()], varBits); // Write each operation to the output file
+            }
+            else if(operation.getOpName() == "EQ")
+            {
+                operationCounts[operation.getOpName()] += 1;
+                // The 'index' is used as a unique ID for the created module
+                operation.printOperation(file, operationCounts[operation.getOpName()], varBits); // Write each operation to the output file
+            }
+            else if(operation.getOpName() == "MUX")
+            {
+                operationCounts[operation.getOpName()] += 1;
+                // The 'index' is used as a unique ID for the created module
+                operation.printOperation(file, operationCounts[operation.getOpName()], varBits); // Write each operation to the output file
+            }
+            else if(operation.getOpName() == "SHR")
+            {
+                operationCounts[operation.getOpName()] += 1;
+                // The 'index' is used as a unique ID for the created module
+                operation.printOperation(file, operationCounts[operation.getOpName()], varBits); // Write each operation to the output file
+            }
+            else if(operation.getOpName() == "SHL")
+            {
+                operationCounts[operation.getOpName()] += 1;
+                // The 'index' is used as a unique ID for the created module
+                operation.printOperation(file, operationCounts[operation.getOpName()], varBits); // Write each operation to the output file
+            }
+            else if(operation.getOpName() == "REG")
+            {
+                operationCounts[operation.getOpName()] += 1;
+                // The 'index' is used as a unique ID for the created module
+                operation.printOperation(file, operationCounts[operation.getOpName()], varBits); // Write each operation to the output file
+            }
+        }
+    }
+
+	file << "\n" << "endmodule";
+
 	return;
 }
 
@@ -385,53 +489,66 @@ void writeToOutput(string verilogFile, NetParser &netParser)
 */
 void SetNet::printInput(ofstream& file) const
 {
-    file << "\t" << this->getNetType() << " [" << this->getBitWidth() << ":0] " << this->getVarNames() << "," << endl;
+    file << "\t" << this->getNetType() << " [" << this->getBitWidth()-1 << ":0] " << this->getVarNames() << "," << endl;
     return;
 }
 
 void SetNet::printOutput(ofstream& file) const
 {
-    file << "\t" << this->getNetType() << " [" << this->getBitWidth() << ":0] " << this->getVarNames();
+    file << "\t" << this->getNetType() << " [" << this->getBitWidth()-1 << ":0] " << this->getVarNames();
     return;
 }
 
 void SetNet::printWire(ofstream& file, vector<SetOp> ops) const
 {
     istringstream ss(this->getVarNames());
-    string var;
     vector<string> vars; // Vector to store dynamically created string variables
+    string var; // Store a single variable
     vector<string> oneBitVars; // Store variables that only require a single bit
     string str1; // Store the one bit variables
     string str2; // Store the multi-bit variables
+    bool isOneBit = false;
 
-	while(ss >> var) // Loop while opStream is not empty
-	{
+    while ( getline(ss, var, ',') ) // Loop the variables
+    {
+        // Trim leading and trailing whitespaces from var
+        var.erase(0, var.find_first_not_of(" \t\r\n"));
+        var.erase(var.find_last_not_of(" \t\r\n") + 1);
+
         vars.push_back(var); // Store the token in the vector
     }
 
     for ( auto it = vars.begin(); it != vars.end(); ) // Separate any wire that is only required one bit of width from the multi-bit width
     {
-
         const string& currentVar = *it; // Assigns a constant reference to the current string element pointed to by the iterator 
 
         for (const SetOp& operation : ops) // Iterate through the referenced 'operations' vector
         {
             const vector<string>& operands = operation.getOperands(); // Access the vector of operands for each SetOp object
 
-            for (const string& operand : operands) // Iterate through the vector of operands
+            if (operands[1] == currentVar && operation.getOpName() == "MUX")
             {
-                if (operands[1] == currentVar && operation.getOpName() == "MUX")
-                {
-                    oneBitVars.push_back(currentVar); // Store 'currentVar' to the 'oneBitVars' vector
-                    it = vars.erase(it);  // Remove 'currentVar' from 'vars' and update the iterator
-                }
-                else
-                {
-                    ++it;  // Move to the next element
-                }
+                oneBitVars.push_back(currentVar); // Store 'currentVar' to the 'oneBitVars' vector
+                it = vars.erase(it);  // Remove 'currentVar' from 'vars' and update the iterator
+                isOneBit = true;
+                break;
             }
         }
+        if(isOneBit)
+        {
+            break;
+        }
+        ++it;
     }
+
+    // for (const auto& token : vars) {
+    //     cout << "Variable: " << token << endl;
+    // }
+
+    // for (const auto& token : oneBitVars) {
+    //     cout << "Variable: " << token << endl;
+    // }
+
 
     if (!oneBitVars.empty())
     {
@@ -453,10 +570,10 @@ void SetNet::printWire(ofstream& file, vector<SetOp> ops) const
             }
         }
 
-        file << "\t" << this->getNetType() << " [" << this->getBitWidth() << ":0] " << str2 << ";" << endl; // Write the multi-bit variable into the output file
+        file << "\t" << this->getNetType() << " [" << this->getBitWidth()-1 << ":0] " << str2 << ";" << endl; // Write the multi-bit variable into the output file
     } else
     {
-        file << "\t" << this->getNetType() << " [" << this->getBitWidth() << ":0] " << this->getVarNames() << ";" << endl; // Write the multi-bit variable into the output file
+        file << "\t" << this->getNetType() << " [" << this->getBitWidth()-1 << ":0] " << this->getVarNames() << ";" << endl; // Write the multi-bit variable into the output file
     }
 
     return;
@@ -464,7 +581,7 @@ void SetNet::printWire(ofstream& file, vector<SetOp> ops) const
 
 void SetNet::printRegister(ofstream& file) const
 {
-    file << "\t" << this->getNetType() << " [" << this->getBitWidth() << ":0] " << this->getVarNames() << ";" << endl;
+    file << "\t" << this->getNetType() << " [" << this->getBitWidth()-1 << ":0] " << this->getVarNames() << ";" << endl;
     return;
 }
 
@@ -484,11 +601,11 @@ void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, va
         */
         if(signType) // If the either is a signed type
         {
-            file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << " (" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] <<");" << endl;
+            file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] <<");" << endl;
         }
         else
         {
-            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << " (" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ");" << endl;
+            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ");" << endl;
         }
     }
     else if( this->getOpName() == "SUB")
@@ -532,11 +649,11 @@ void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, va
         */
         if(signType)
         {
-            file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ", 1\'b0, 1\'b0" << ");" << endl;
+            file << "\t" << "S" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ", 1\'b0, 1\'b0" << ");" << endl;
         }
         else
         {
-            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ", 1\'b0, 1\'b0" << ");" << endl;
+            file << "\t" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ", " << this->getOperands()[0] << ", 1\'b0, 1\'b0" << ");" << endl;
         }
     }
     else if( this->getOpName() == "LT")
@@ -548,11 +665,11 @@ void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, va
         */
         if(signType)
         {
-            file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ",  1\'b0, " << this->getOperands()[0] << ", 1\'b0" << ");" << endl;
+            file << "\t" << "S" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ",  1\'b0, " << this->getOperands()[0] << ", 1\'b0" << ");" << endl;
         }
         else
         {
-            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ",  1\'b0, " << this->getOperands()[0] << ", 1\'b0" << ");" << endl;
+            file << "\t" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ",  1\'b0, " << this->getOperands()[0] << ", 1\'b0" << ");" << endl;
         }
     }
     else if( this->getOpName() == "EQ")
@@ -564,11 +681,11 @@ void SetOp::printOperation(ofstream& file, int indexOp, unordered_map<string, va
         */
         if(signType)
         {
-            file << "\t" << "S" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ",  1\'b0, 1\'b0, " << this->getOperands()[0] << ");" << endl;
+            file << "\t" << "S" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ",  1\'b0, 1\'b0, " << this->getOperands()[0] << ");" << endl;
         }
         else
         {
-            file << "\t" << this->getOpName() << " #(.DATAWIDTH(" << maxBitWidth << ")) " << this->getOpName() << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ",  1\'b0, 1\'b0, " << this->getOperands()[0] << ");" << endl;
+            file << "\t" << "COMP" << " #(.DATAWIDTH(" << maxBitWidth << ")) " << "COMP" << indexOp << "(" << this->getOperands()[1] << ", " << this->getOperands()[2] << ",  1\'b0, 1\'b0, " << this->getOperands()[0] << ");" << endl;
         }
     }
     else if( this->getOpName() == "MUX")
@@ -868,7 +985,7 @@ SetNet parseRegister(string regString, NetParser& np) // Tokenize the register s
 	return SetNet("wire", bitValue, netReg[1]); // Return this temporary initialized object
 }
 
-SetOp parseOperation(string opString, bool createReg, NetParser& netParser) // Tokenize the operation string, retaining only the utilized tokens
+SetOp parseOperation(string opString, bool createReg) // Tokenize the operation string, retaining only the utilized tokens
 {
 	istringstream opStream(opString); // Initialize a stream from a string and then parse it (purposely for >>)
 	string tempOp; // Declare string variable to store token
@@ -884,10 +1001,9 @@ SetOp parseOperation(string opString, bool createReg, NetParser& netParser) // T
         tokenCount++; // Increment the counter
     }
 
-    if(createReg) // Checks if a register needs to be created
+    if(createReg)
     {
-        vector<string> tempVec {tempOps[0], tempOps[0]+"wire"}; // Temporary vector
-        netParser.setOperation(SetOp("REG",tempVec)); // Create the register operation
+        tempOps[0] += "wire";
     }
 
 	// Index starts [0]
@@ -1016,15 +1132,15 @@ bool NetParser::convertToVerilog(string inputFile, string outputFile)
         }
     }
 
-    ofstream verilogFile(outputFile);
+    // ofstream verilogFile(outputFile);
 
-    // Output each string in the vector
-    for (const string& lain : text_lines) {
-        cout << lain << endl;
-        verilogFile << lain << endl;
-    }
+    // // Output each string in the vector
+    // for (const string& lain : text_lines) {
+    //     cout << lain << endl;
+    //     verilogFile << lain << endl;
+    // }
 
-    return true;
+    // return true;
 
     /*
 
@@ -1037,47 +1153,68 @@ bool NetParser::convertToVerilog(string inputFile, string outputFile)
 
     */
 
-    // NetParser netParser; // Create an instance of NetParser object
+    NetParser netParser; // Create an instance of NetParser object
 
-    // /*
-    //     'auto' tells the compiler to infer the type of it based on the initialization expression text_lines.begin().
-    // */
-    // for (const auto& line : text_lines)
-    // {
-    //     istringstream lineStream(line); // Initialize a stream from a string and then parse it (purposely for >>)
-    //     string netType; // Declare string variable to store token
+    /*
+        'auto' tells the compiler to infer the type of it based on the initialization expression text_lines.begin().
+    */
+    for (const auto& line : text_lines)
+    {
+        istringstream lineStream(line); // Initialize a stream from a string and then parse it (purposely for >>)
+        string netType; // Declare string variable to store token
+        string bitWidth;
 
-    //     lineStream >> netType; // Store the first token in netType
+        lineStream >> netType >> bitWidth; // Store the first token in netType
         
-    //     if( !checkBitWidth(netType) ) // Check whether the bit width is valid
-    //     {
-    //         return false;
+        if( netType.compare(INPUT) == 0 && checkBitWidth(bitWidth) ) // Check whether the extracted token is equal to INPUT
+        {
+            netParser.setInput(parseInput(line, netParser)); // Pass the string in the current line to the function
+        }
+        else if( netType.compare(OUTPUT) == 0 && checkBitWidth(bitWidth)) // Check whether the extracted token is equal to INPUT
+        {
+            netParser.setOutput(parseOutput(line, netParser)); // Pass the string in the current line to the function
+        }
+        else if( netType.compare(WIRE) == 0 && checkBitWidth(bitWidth) ) // Check whether the extracted token is equal to INPUT
+        {
+            netParser.setWire(parseWire(line, netParser)); // Pass the string in the current line to the function
+        }
+        else if( netType.compare(REGISTER) == 0 && checkBitWidth(bitWidth) ) // Check whether the extracted token is equal to INPUT
+        {
+            netParser.setRegister(parseRegister(line, netParser)); // Pass the string in the current line to the function
+        }
+        else // Check if current line is an operation expression
+        {
+            bool createReg = checkOutput(line, netParser);
+            netParser.setOperation(parseOperation(line, createReg)); // Pass the string in the current line to the function
+            if(createReg) // Checks if a register needs to be created
+            {
+                createRegister(line, netParser); 
+            }
+        }
+    }
+
+    // for (const auto& wire : netParser.getOperations() ) {
+    //     cout << "OpName: " << wire.getOpName() << endl;
+    //     // Iterate through the vector using a range-based for loop
+    //     cout << "Operands: ";
+    //     for (const auto& op : wire.getOperands()) {
+    //         cout << op << ",";
     //     }
-    //     else if( netType.compare(INPUT) == 0 && checkBitWidth(netType) ) // Check whether the extracted token is equal to INPUT
-    //     {
-    //         netParser.setInput(parseInput(line, netParser)); // Pass the string in the current line to the function
-    //     }
-    //     else if( netType.compare(OUTPUT) == 0 && checkBitWidth(netType)) // Check whether the extracted token is equal to INPUT
-    //     {
-    //         netParser.setOutput(parseOutput(line, netParser)); // Pass the string in the current line to the function
-    //     }
-    //     else if( netType.compare(WIRE) == 0 && checkBitWidth(netType) ) // Check whether the extracted token is equal to INPUT
-    //     {
-    //         netParser.setWire(parseWire(line, netParser)); // Pass the string in the current line to the function
-    //     }
-    //     else if( netType.compare(REGISTER) == 0 && checkBitWidth(netType) ) // Check whether the extracted token is equal to INPUT
-    //     {
-    //         netParser.setRegister(parseRegister(line, netParser)); // Pass the string in the current line to the function
-    //     }
-    //     else // Otherwise the line is an operation expression
-    //     {
-    //         bool createWire = checkOutput(line, netParser);
-    //         netParser.setOperation(parseOperation(line, createWire, netParser)); // Pass the string in the current line to the function
-    //     }
+    //     cout << "\n" << endl;
     // }
 
-    // writeToOutput(outputFile, netParser); // Do the conversion and write the result to the output file
+    // for (const auto& wire : netParser.getRegisters() ) {
+    //     cout << "NetType: " << wire.getNetType() << ", Bitwidth: " << wire.getBitWidth() << ", VarNames: " << wire.getVarNames() << endl;
+    // }
 
-    // return true;
+    // unordered_map<string, variableInfo> temp = netParser.getVariableBits();
+
+    // for (const auto& pair : temp) {
+    //     cout << "Key: " << pair.first << ", NetType: " << pair.second.netType << ", SignType: " << pair.second.signType << ", BitWidth: " << pair.second.bitWidth << endl;
+    // }
+
+    writeToOutput(outputFile, netParser); // Do the conversion and write the result to the output file
+
+    return true;
 }
 
